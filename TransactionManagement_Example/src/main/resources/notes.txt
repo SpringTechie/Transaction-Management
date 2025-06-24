@@ -1,0 +1,134 @@
+ACID:
+Atomicity: Ensure all operations in transaction are completed successfully. If any transaction fails roll-backed.
+Consistency: Ensure the DB state before and after the transaction is consistent.
+Isolation: Even if multiple transaction are running parallel, they dont not interfere each other.
+Durability : Ensure transaction should never be lost despite of system failure.
+
+Example:
+ TRANSACTION_BEGIN:
+            Debited from A
+            Debited from B
+           if everything success:
+               commit
+           else :
+               rollback
+ END_TRANSACTION
+
+ Implementation:
+ Transactional : It internally uses AOP
+Step1: Uses pointcut expression to search for methods having @Transactional Annotation.
+       Once pointcut matches run Around type advice. it calls invokeWithinTransaction method present
+       inside the TransactionInterceptor class
+       invokeWithinTransaction() this method will follow work:
+       1.Create transaction
+       2.Invoke Method : Here out method will be invoked
+       3.Commit or Rollback transaction
+
+Transaction Context:
+    1.Programmatic: Handle by using code.
+                    Flexible but difficult to maintain
+
+    2.Declarative : Transaction achieved by using @Transactional annotation
+                    Spring Boot choose respective Transaction Manager.
+                    we can create explicitly Transaction Manager and tell spring boot to choose.
+
+
+Transaction Manager(Interface): Is the core component that manages commit and rollback functionalities.
+There are many impl classes for above.
+1.JtaTransactionManager = ?
+2.DataSourceTransactionManager
+3.HibernateTransactionManager
+4.JdbcTransactionManager
+5.JpaTransactionManager
+
+To check manager is selected at runtime we can get by running this code.
+Run application in debug.keep debug point in a method which is annotated with @Transactional. Then evaluate this expression.
+TransactionAspectSupport.currentTransactionStatus().
+Here you get to know which Transaction Manager is selected.
+
+
+If you to choose a custom Transaction Manager we can do by this way..
+1.create a configuration class inside that create DataSource Bean and PlatformTransactionManager object.
+2.Inside the @Transactional add attribute transactionManager = "custom_created_TransactionManager".
+Now debug application like we done above.Now you can see custom created TransactionManager.
+
+
+Transaction Propagation: refers to how Transaction behave when a method annotated with @Transactional is called by another method
+that may or may not have active Transaction
+
+1.Propagation.Required(default) = if we give this attribute in Transactional annotation, then says it requires a
+                        Transaction if not present .
+                        If Transaction already present from caller method, then it appends the existing Transaction.
+2.REQUIRES_NEW = This will suspend existing Transaction and always creates new Transaction.
+                 In which scenario we have to use:
+                 Whenever we need notification should be sent separate Transaction or when we need call call api multiple time if fails (retry logic).
+3.MANDATORY : It won't create new Transaction, it always use existing Transaction.
+              if no Transaction is present it throws exception.(IllegalTransactionStateException.)
+4.NESTED : It is useful for partial rollbacks.
+           if caller method and this method as Transaction, manager will create save point for Transaction
+           and starts seconds Transaction, if any exception occurs in second Transaction, then it only rollback
+           up to save point.
+5.SUPPORTS: If we have Transaction in calling then it supports the Transaction, else it won't create
+            new Transaction meaning it won't execute in  Transaction.
+6.NOT_SUPPORTED: If called method has Transaction, and we no need any Transaction in method.
+                 meaning the method wont runs in any Transaction.
+                 It suspend the existing Transaction and runs this method without any Transaction.
+7.NEVER       : If we call method from any Transaction context it throws exception.(.IllegalTransactionStateException)
+                It should not called from any Transaction annotated method.
+
+Why Transactional annotation will only rollback for runtime exception?
+By default, Spring’s @Transactional annotation only rolls back on unchecked exceptions, i.e.:
+
+Runtime exceptions (RuntimeException and subclasses)
+
+Errors (Error and subclasses)
+
+But it does not roll back on checked exceptions (like IOException, SQLException, Exception).
+Why This Behavior?
+Spring's design philosophy:
+
+It follows the standard Java EJB model, where rollback happens on unchecked exceptions unless configured otherwise.
+
+Checked exceptions are often expected and should usually be handled gracefully, not always cause a rollback.
+
+Preventing accidental rollback:
+
+Not all checked exceptions indicate a transactional failure (e.g., file not found, API timeout).
+
+How to Roll Back on Checked Exceptions?
+You can configure this manually using @Transactional(rollbackFor = CustomException.class or checked exception):
+
+
+Isolation...
+Isolation defines how one transaction is isolated from others — i.e., how and when the changes made by one transaction become visible to others.
+
+It’s one of the ACID properties of transactions.
+
+
+Common Read Issues Explained:
+Issue	        Example
+Dirty Read : 	    You read uncommitted data from another transaction
+Non-Repeatable Read:	You read the same row twice and get different data
+Phantom Read: 	    A query yields different number of rows between reads
+
+| Level                    | Prevents Which Issues?                   | Description                                                                                |
+| ------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+|  READ_UNCOMMITTED        |  Nothing                                 | Transactions can see **uncommitted changes** from others. Dirty reads allowed.             |
+|  READ\_COMMITTED         |  Dirty Reads                             | Only sees **committed data**. Most common. Still allows non-repeatable reads.              |
+|  REPEATABLE\_READ        |  Dirty + Non-Repeatable Reads            | Ensures same query returns same result within a transaction. But phantom reads can happen. |
+|  SERIALIZABLE            |  Dirty + Non-Repeatable + Phantom Reads  | Highest isolation. Transactions appear completely sequential. Slowest but safest.          |
+
+
+What Is a Non-Repeatable Read?
+A Non-Repeatable Read occurs when:
+
+A transaction reads the same row twice and gets different values because another transaction modified the row and committed in the meantime.
+
+This breaks the expectation of data consistency within a single transaction.
+
+
+At REPEATABLE READ, a transaction reads from a snapshot, so repeated reads always give the same result — even if others commit changes.
+
+
+
+
