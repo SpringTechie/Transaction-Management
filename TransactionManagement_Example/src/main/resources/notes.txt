@@ -1,8 +1,8 @@
 ACID:
-Atomicity: Ensure all operations in transaction are completed successfully. If any transaction fails roll-backed.
-Consistency: Ensure the DB state before and after the transaction is consistent.
-Isolation: Even if multiple transaction are running parallel, they dont not interfere each other.
-Durability : Ensure transaction should never be lost despite of system failure.
+Atomicity   : Ensure all operations in transaction are completed successfully. If any transaction fails roll-backed.
+Consistency : Ensure the DB state before and after the transaction is consistent.
+Isolation   : Even if multiple transaction are running parallel, they dont not interfere each other.
+Durability  : Ensure transaction should never be lost despite of system failure.
 
 Example:
  TRANSACTION_BEGIN:
